@@ -106,17 +106,24 @@ if f_df.empty:
 else:
     # 1. KPI Row
     total_feed = f_df['AMOUNT'].sum()
-    cycle_days = (pd.to_datetime(harvest_date) - pd.to_datetime(stock_date)).days
-    avg_intake = total_feed / cycle_days if cycle_days > 0 else total_feed
+    # Calculate days safely (ensuring at least 1 to avoid division by zero)
+    raw_days = (pd.to_datetime(harvest_date) - pd.to_datetime(stock_date)).days
+    cycle_days = max(1, raw_days)
+    avg_intake = total_feed / cycle_days
 
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
     kpi1.metric("Cycle Total Feed", f"{total_feed:,.1f} Kgs")
-    kpi2.metric("Cycle Duration", f"{cycle_days} Days")
+    kpi2.metric("Cycle Duration", f"{raw_days} Days")
     kpi3.metric("Daily Avg", f"{avg_intake:.2f} Kgs")
     
-    z = np.polyfit(range(len(f_df)), f_df['AMOUNT'], 1) if len(f_df) > 5 else [0,0]
-    p = np.poly1d(z)
-    forecast_30 = max(0, p(len(f_df) + 15) * 30)
+    # Calculate forecast safely
+    if len(f_df) > 5:
+        z = np.polyfit(range(len(f_df)), f_df['AMOUNT'], 1)
+        p = np.poly1d(z)
+        forecast_30 = max(0, p(len(f_df) + 15) * 30)
+    else:
+        z = [0, 0]
+        forecast_30 = 0
     kpi4.metric("30-Day Forecast", f"{forecast_30:,.0f} Kgs")
 
     st.markdown("---")
