@@ -155,7 +155,7 @@ else:
         if avg_intake > (farm_avg * 1.1):
             st.success("✅ HIGH PERFORMANCE: Above farm average.")
         else:
-            st.info("ℹ️ STANDARD: Consistent with farm baseline.")v
+            st.info("ℹ️ STANDARD: Consistent with farm baseline.")
 
     with info2:
         st.markdown("**Dominant Feed Size**")
