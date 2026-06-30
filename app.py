@@ -56,6 +56,10 @@ def load_data_from_gsheets(sheet_url):
         df_raw = pd.read_csv(csv_url)
         df_raw.columns = df_raw.columns.str.strip()
         df_raw['DATE'] = pd.to_datetime(df_raw['DATE'], dayfirst=True, format='mixed', errors='coerce')
+        
+        # --- THE FIX: Forces the AMOUNT column to be treated as numbers ---
+        df_raw['AMOUNT'] = pd.to_numeric(df_raw['AMOUNT'], errors='coerce')
+        
         if 'CAGE/TANK' in df_raw.columns:
             df_raw['CAGE/TANK'] = df_raw['CAGE/TANK'].astype(str).str.strip()
         return df_raw.dropna(subset=['DATE', 'CAGE/TANK', 'AMOUNT'])
@@ -106,24 +110,17 @@ if f_df.empty:
 else:
     # 1. KPI Row
     total_feed = f_df['AMOUNT'].sum()
-    # Calculate days safely (ensuring at least 1 to avoid division by zero)
-    raw_days = (pd.to_datetime(harvest_date) - pd.to_datetime(stock_date)).days
-    cycle_days = max(1, raw_days)
-    avg_intake = total_feed / cycle_days
+    cycle_days = (pd.to_datetime(harvest_date) - pd.to_datetime(stock_date)).days
+    avg_intake = total_feed / cycle_days if cycle_days > 0 else total_feed
 
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
     kpi1.metric("Cycle Total Feed", f"{total_feed:,.1f} Kgs")
-    kpi2.metric("Cycle Duration", f"{raw_days} Days")
+    kpi2.metric("Cycle Duration", f"{cycle_days} Days")
     kpi3.metric("Daily Avg", f"{avg_intake:.2f} Kgs")
     
-    # Calculate forecast safely
-    if len(f_df) > 5:
-        z = np.polyfit(range(len(f_df)), f_df['AMOUNT'], 1)
-        p = np.poly1d(z)
-        forecast_30 = max(0, p(len(f_df) + 15) * 30)
-    else:
-        z = [0, 0]
-        forecast_30 = 0
+    z = np.polyfit(range(len(f_df)), f_df['AMOUNT'], 1) if len(f_df) > 5 else [0,0]
+    p = np.poly1d(z)
+    forecast_30 = max(0, p(len(f_df) + 15) * 30)
     kpi4.metric("30-Day Forecast", f"{forecast_30:,.0f} Kgs")
 
     st.markdown("---")
@@ -158,7 +155,7 @@ else:
         if avg_intake > (farm_avg * 1.1):
             st.success("✅ HIGH PERFORMANCE: Above farm average.")
         else:
-            st.info("ℹ️ STANDARD: Consistent with farm baseline.")
+            st.info("ℹ️ STANDARD: Consistent with farm baseline.")v
 
     with info2:
         st.markdown("**Dominant Feed Size**")
